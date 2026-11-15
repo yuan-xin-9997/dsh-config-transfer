@@ -25,6 +25,9 @@ const PATCH = `# personal profile
   config:
     apiKeyEnv: DEMO_API_KEY
     apiKey: sk-live-example
+    list:
+      - name: keep
+      - name: replace
 - insert:
     - id: mcp-demo
       name: "@deepseek-ai/dsh-mcp-client"
@@ -101,7 +104,7 @@ test('exports categories, redacts credentials and keeps environment references',
 
   const mcp = document.categories.mcp.items.find(item => item.id === 'mcp-demo')
   assert.equal(mcp.config.env.API_TOKEN, '***REDACTED***')
-  assert.equal(mcp.config.env.SAFE_VALUE, 'plain')
+  assert.equal(mcp.config.env.SAFE_VALUE, '***REDACTED***', 'every env value is treated as a credential container')
   assert.equal(document.categories.presets.items.find(item => item.id === 'preset-custom').config.name, 'Custom preset')
 
   const full = await buildExport(ctx, ['plugins', 'mcp'], { includeSecrets: true })
@@ -205,14 +208,45 @@ test('writes an id-only override when a bundle row has no module name in the doc
   assert.throws(() => applyItemToDocument(parseDocument('[]\n'), { id: 'new', kind: 'insert' }), /no module name/)
 })
 
+test('keeps target array elements behind redacted placeholders', async () => {
+  const dir = await profile()
+  const ctx = context(dir)
+  await applyImport(ctx, {
+    format: 'dsh-config-transfer',
+    version: 1,
+    categories: {
+      plugins: {
+        items: [{
+          id: 'llm-demo', kind: 'override',
+          config: { list: ['***REDACTED***', 'replaced'] },
+        }],
+      },
+    },
+  }, ['plugins'], {})
+  const text = await fsp.readFile(path.join(dir, 'cordis.patch.yml'), 'utf8')
+  const rows = parseDocument(text).toJS()
+  assert.deepEqual(rows.find(row => row.id === 'llm-demo').config.list, [{ name: 'keep' }, 'replaced'])
+  assert.equal(text.includes('sk-live-example'), true, 'unrelated configuration survives the merge')
+})
+
+test('redacts credentials inside env containers even with a generic key', () => {
+  const redacted = []
+  const source = { env: { PRIVATE_KEY: 'abc', SIGNING_KEY: 'def', REF: '${TOKEN}' } }
+  const safe = sanitizeValue(source, '', [], redacted, false)
+  assert.equal(safe.env.PRIVATE_KEY, '***REDACTED***')
+  assert.equal(safe.env.SIGNING_KEY, '***REDACTED***')
+  assert.equal(safe.env.REF, '${TOKEN}')
+  assert.equal(redacted.length, 2)
+})
+
 test('sanitizes nested values without mutating the source', () => {
   const redacted = []
   const source = { headers: { Authorization: 'Bearer abc' }, env: { TOKEN: 'abc', URL: 'https://x' }, list: [{ secret: 'abc' }] }
   const safe = sanitizeValue(source, '', [], redacted, false)
   assert.equal(safe.headers.Authorization, '***REDACTED***')
   assert.equal(safe.env.TOKEN, '***REDACTED***')
-  assert.equal(safe.env.URL, 'https://x')
+  assert.equal(safe.env.URL, '***REDACTED***')
   assert.equal(safe.list[0].secret, '***REDACTED***')
   assert.equal(source.headers.Authorization, 'Bearer abc')
-  assert.equal(redacted.length, 3)
+  assert.equal(redacted.length, 4)
 })

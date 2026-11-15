@@ -819,24 +819,41 @@ function assertJsonValue(value, depth) {
 }
 
 /** Recursively replace credential-looking values with a sentinel. */
-export function sanitizeValue(value, key, pathParts, redacted, includeSecrets) {
+export function sanitizeValue(value, key, pathParts, redacted, includeSecrets, forced = false) {
   if (isJsMarker(value)) return { [JS_MARKER]: value[JS_MARKER] }
   if (Array.isArray(value)) {
-    return value.map((entry, index) => sanitizeValue(entry, key, [...pathParts, String(index)], redacted, includeSecrets))
+    return value.map((entry, index) => sanitizeValue(entry, key, [...pathParts, String(index)], redacted, includeSecrets, forced))
   }
   if (isPlainObject(value)) {
     const out = {}
     for (const [childKey, child] of Object.entries(value)) {
       if (childKey === '__proto__' || childKey === 'constructor' || childKey === 'prototype') continue
-      out[childKey] = sanitizeValue(child, childKey, [...pathParts, childKey], redacted, includeSecrets)
+      // Everything under env/headers is a value a server or process would
+      // consume as a credential even when its own key name is generic.
+      const nested = forced || isCredentialContainer(childKey)
+      out[childKey] = sanitizeValue(child, childKey, [...pathParts, childKey], redacted, includeSecrets, nested)
     }
     return out
   }
-  if (!includeSecrets && typeof value === 'string' && isSecretKey(key) && !isCredentialReference(value)) {
+  if (!includeSecrets && typeof value === 'string'
+    && (forced || isSecretKey(key) || looksLikeCredential(value))
+    && !isCredentialReference(value)) {
     redacted.push(pathParts.join('.'))
     return REDACTED
   }
   return value
+}
+
+/** Whether a field holds a map of credentials rather than one credential. */
+function isCredentialContainer(key) {
+  if (typeof key !== 'string') return false
+  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
+  return normalized === 'env' || normalized === 'environment' || normalized === 'headers'
+}
+
+/** Whether a free-form string names a well-known credential format. */
+function looksLikeCredential(value) {
+  return /^(?:gh[pousr]_|github_pat_|sk-[A-Za-z0-9]|xox[abp]-|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{10,}\.)/.test(value)
 }
 
 /** Whether a field name names a credential rather than a reference to one. */
@@ -861,12 +878,24 @@ function isCredentialReference(value) {
 
 /** Merge imported configuration into the target configuration. */
 function mergeConfig(base, incoming) {
+  if (Array.isArray(incoming)) {
+    if (!Array.isArray(base)) return stripRedacted(incoming)
+    const out = []
+    incoming.forEach((value, index) => {
+      if (value === REDACTED) {
+        if (index < base.length) out.push(cloneJson(base[index]))
+        return
+      }
+      out.push(mergeConfig(base[index], value))
+    })
+    return out
+  }
   if (!isPlainObject(base) || !isPlainObject(incoming)) return cloneJson(incoming)
   const out = { ...base }
   for (const [key, value] of Object.entries(incoming)) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue
     if (value === REDACTED) continue
-    out[key] = isPlainObject(value) && isPlainObject(out[key]) ? mergeConfig(out[key], value) : cloneJson(value)
+    out[key] = mergeConfig(out[key], value)
   }
   return out
 }
@@ -1051,7 +1080,7 @@ function recordChange(report, category, key, result, verb) {
 /** Read and parse one request body as JSON. */
 async function readJson(request) {
   const text = await request.text()
-  if (text.length > MAX_BODY_BYTES) throw new HttpError(413, 'the request body is too large')
+  if (Buffer.byteLength(text, 'utf8') > MAX_BODY_BYTES) throw new HttpError(413, 'the request body is too large')
   try {
     return JSON.parse(text)
   } catch {

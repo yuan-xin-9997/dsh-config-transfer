@@ -56,7 +56,7 @@ The file records the profile name, DSH version, platform and creation time, plus
 3. Optionally tick **Also install missing plugin bundles**. This runs package installation and executes third-party code; leave it off when the file came from an untrusted source.
 4. Choose **Start import** and read the per-item report.
 
-Before the first change the Host copies the current `cordis.patch.yml` to `cordis.patch.yml.bak-<timestamp>` beside it. Each row is reported as **Applied**, **Skipped** or **Failed**, with the reason. Without HMR, the page says the changes take effect after DSH restarts.
+Before the first change to plugin configuration, MCP or preset rows, the Host copies the current `cordis.patch.yml` to `cordis.patch.yml.bak-<timestamp>` beside it. A bundle-only import changes only the profile's bundle selection. Each row is reported as **Applied**, **Skipped** or **Failed**, with the reason. Without HMR, the page says the changes take effect after DSH restarts.
 
 Redacted values are not written back: an imported `***REDACTED***` keeps the target machine's existing value for that field. Arrays with redacted entries are shortened only when a *new* row is created; existing rows keep their values.
 
@@ -90,8 +90,8 @@ Redacted values are not written back: an imported `***REDACTED***` keeps the tar
 
 ## Safety and privacy
 
-- The page talks only to the local DSH Host. Export never sends configuration anywhere.
-- Secrets are hidden by default. Enabling the option writes them to the downloaded file in clear text, so store that file accordingly.
+- The page talks only to the local DSH Host. Export never sends configuration anywhere. The file contains local profile paths and bundle sources (absolute paths and user names), so treat it as machine information.
+- Recognized credentials and every value under `env`/`headers` are hidden by default; known token formats are also caught by value. Enabling the option writes them to the downloaded file in clear text, so store that file accordingly. Heuristics cannot catch every custom secret, so inspect the file before sharing it.
 - Import writes `cordis.patch.yml` (with a backup) and, if chosen, `package.json`/`pnpm-lock.yaml` through the plugin manager. It never reads session logs or credentials.
 - Installing a bundle is running code. The import page requires an explicit tick for it.
 

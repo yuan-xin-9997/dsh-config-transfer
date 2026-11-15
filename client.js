@@ -31,14 +31,11 @@ window.__ModuleLoader__.load({
     /** Same limit as the Host body reader. */
     const MAX_FILE_BYTES = 4 * 1024 * 1024
 
-    /** Storage key for the last download filename, so the page can mention it. */
-    const LAST_EXPORT_KEY = 'dsh-config-transfer/last-export'
-
     const ZH = {
       nav: '配置导入导出',
       title: '配置导入导出',
-      intro: '把本机 DSH 的插件包、插件配置、MCP 服务器和代理预设导出成一个 JSON 文件，或从文件中选择类别导入。写入前会自动备份当前的 cordis.patch.yml。',
-      profile: '配置文件',
+      intro: '把本机 DSH 的插件包、插件配置、MCP 服务器和代理预设导出成一个 JSON 文件，或从文件中选择类别导入。导入插件配置、MCP 或预设前会自动备份 cordis.patch.yml；仅导入插件包时只调整 profile 的包选择。',
+      profile: 'Profile',
       version: 'DSH 版本',
       refresh: '刷新清单',
       loading: '正在读取本机配置…',
@@ -62,14 +59,16 @@ window.__ModuleLoader__.load({
       'export.title': '导出',
       'export.hint': '只导出当前 profile 用户层的内容，不包含 DSH 自带插件的默认配置。',
       includeSecrets: '包含密钥与环境变量值',
-      'includeSecrets.hint': '默认会把 token、密码、API Key 和请求头替换为 ***REDACTED***。导入时这些占位符会保留目标机器原有的值。',
+      'includeSecrets.hint': '默认会隐藏识别出的 token、密码、API Key、授权头，以及 env/headers 中的值。导入时这些占位符会保留目标机器原有的值；仍建议检查下载的文件。',
       'export.button': '导出所选类别',
       exporting: '正在生成文件…',
       exported: '已生成 {name}',
+      exportedRedacted: '已生成 {name}，隐藏了 {count} 个凭据字段',
+      exportedSecrets: '已生成 {name}，其中包含明文凭据',
       exportEmpty: '至少选择一个类别',
       exportFailed: '导出失败',
       'import.title': '导入',
-      'import.hint': '文件只在本机浏览器中解析预览，点“开始导入”后才会写入 profile。',
+      'import.hint': '文件只在本机浏览器中解析预览，点“开始导入”后才会写入 profile；写入插件配置、MCP 或预设前会自动备份 cordis.patch.yml。',
       'import.choose': '选择配置文件…',
       parsing: '正在读取文件…',
       'import.preview': '导入预览',
@@ -82,7 +81,7 @@ window.__ModuleLoader__.load({
       'import.partial': '导入结束，但有失败项',
       'import.failed': '导入失败',
       'import.backup': '改动前备份',
-      'import.restart': '当前 Host 没有启用 HMR，改动将在重启 DSH 后生效。',
+      'import.restart': '改动将在 DSH 重启后生效。',
       'import.noSelection': '至少选择一个类别',
       'import.invalid': '这不是有效的 dsh-config-transfer 配置文件',
       'import.tooLarge': '文件超过 4 MB，已拒绝读取',
@@ -93,8 +92,6 @@ window.__ModuleLoader__.load({
       'result.applied': '已应用',
       'result.skipped': '已跳过',
       'result.failed': '失败',
-      'result.more': '还有 {count} 条未显示',
-      'result.none': '没有产生改动',
       'result.warnings': '运行警告',
       'result.close': '关闭结果',
       'file.bundles': '{count} 个插件包',
@@ -108,7 +105,7 @@ window.__ModuleLoader__.load({
     const EN = {
       nav: 'Config transfer',
       title: 'Config transfer',
-      intro: 'Export this machine\'s plugin bundles, plugin configuration, MCP servers and agent presets into one JSON file, or import chosen categories from such a file. The current cordis.patch.yml is backed up before anything is written.',
+      intro: 'Export this machine\'s plugin bundles, plugin configuration, MCP servers and agent presets into one JSON file, or import chosen categories from such a file. Import backs up cordis.patch.yml before touching plugin configuration, MCP or preset rows; a bundle-only import changes only the profile\'s selection.',
       profile: 'Profile',
       version: 'DSH version',
       refresh: 'Refresh inventory',
@@ -133,14 +130,16 @@ window.__ModuleLoader__.load({
       'export.title': 'Export',
       'export.hint': 'Only this profile\'s user layer is exported; built-in default configuration is not included.',
       includeSecrets: 'Include secrets and environment values',
-      'includeSecrets.hint': 'By default tokens, passwords, API keys and headers are replaced with ***REDACTED***. On import those placeholders keep the target machine\'s existing values.',
+      'includeSecrets.hint': 'By default recognized tokens, passwords, API keys, authorization headers and every value under env/headers is hidden. On import those placeholders keep the target machine\'s existing values; still inspect the downloaded file.',
       'export.button': 'Export selected categories',
       exporting: 'Building the file…',
       exported: 'Created {name}',
+      exportedRedacted: 'Created {name}; {count} credential fields hidden',
+      exportedSecrets: 'Created {name} with credentials in clear text',
       exportEmpty: 'Select at least one category',
       exportFailed: 'Export failed',
       'import.title': 'Import',
-      'import.hint': 'The file is parsed and previewed in this browser only; nothing is written until you choose Start import.',
+      'import.hint': 'The file is parsed and previewed in this browser only; nothing is written until you choose Start import. Import backs up cordis.patch.yml before touching plugin configuration, MCP or preset rows.',
       'import.choose': 'Choose a config file…',
       parsing: 'Reading the file…',
       'import.preview': 'Import preview',
@@ -153,7 +152,7 @@ window.__ModuleLoader__.load({
       'import.partial': 'Import finished with failures',
       'import.failed': 'Import failed',
       'import.backup': 'Backup before changes',
-      'import.restart': 'This Host has no HMR, so changes apply after DSH restarts.',
+      'import.restart': 'Changes apply after DSH restarts.',
       'import.noSelection': 'Select at least one category',
       'import.invalid': 'This is not a valid dsh-config-transfer file',
       'import.tooLarge': 'The file is larger than 4 MB and was not read',
@@ -164,8 +163,6 @@ window.__ModuleLoader__.load({
       'result.applied': 'Applied',
       'result.skipped': 'Skipped',
       'result.failed': 'Failed',
-      'result.more': '{count} more not shown',
-      'result.none': 'No change was made',
       'result.warnings': 'Runtime warnings',
       'result.close': 'Close results',
       'file.bundles': '{count} bundles',
@@ -228,7 +225,7 @@ window.__ModuleLoader__.load({
     function errorText(error, t) {
       const message = error instanceof Error ? error.message : String(error)
       if (message === 'network') return t('error.network')
-      if (message === 'http') return t('error.http', { status: String(error?.status ?? '?') })
+      if (message === 'http') return error?.status === 413 ? t('import.tooLarge') : t('error.http', { status: String(error?.status ?? '?') })
       return message
     }
 
@@ -325,6 +322,7 @@ window.__ModuleLoader__.load({
       const [importSelected, setImportSelected] = useState({})
       const [report, setReport] = useState(null)
       const fileRef = useRef(null)
+      const reportRef = useRef(null)
       const mounted = useRef(true)
       const translate = useRef(t)
       translate.current = t
@@ -350,6 +348,10 @@ window.__ModuleLoader__.load({
         return () => { mounted.current = false }
       }, [load])
 
+      useEffect(() => {
+        if (report !== null) reportRef.current?.focus()
+      }, [report])
+
       const toggle = (id, value) => setSelected(previous => ({ ...previous, [id]: value }))
 
       const chosen = CATEGORIES.filter(id => selected[id])
@@ -370,8 +372,11 @@ window.__ModuleLoader__.load({
           const profileName = inventory?.profile?.name ?? 'profile'
           const name = 'dsh-config-' + String(profileName).replace(/[^a-zA-Z0-9._-]+/g, '-') + '-' + timestampName() + '.json'
           downloadJson(data.document, name)
-          try { window.localStorage.setItem(LAST_EXPORT_KEY, name) } catch { /* storage may be unavailable */ }
-          setNotice({ tone: 'ok', text: t('exported', { name }) })
+          const hidden = CATEGORIES.reduce((total, id) => total + (data.document.categories?.[id]?.items ?? [])
+            .reduce((count, item) => count + (Array.isArray(item.redacted) ? item.redacted.length : 0), 0), 0)
+          setNotice(includeSecrets
+            ? { tone: 'warn', text: t('exportedSecrets', { name }) }
+            : { tone: 'ok', text: hidden > 0 ? t('exportedRedacted', { name, count: hidden }) : t('exported', { name }) })
         } catch (error) {
           setNotice({ tone: 'error', text: t('exportFailed') + ': ' + errorText(error, t) })
         } finally {
@@ -448,6 +453,8 @@ window.__ModuleLoader__.load({
 
       const categoryRows = inventory?.categories ?? []
       const groupOf = id => categoryRows.find(row => row.id === id)
+      const showInstallOption = Array.isArray(pending?.document?.categories?.bundles?.items)
+        && pending.document.categories.bundles.items.length > 0
 
       return h('section', { className: 'dct-section', 'aria-label': t('title') },
         h('style', null, CSS),
@@ -471,7 +478,10 @@ window.__ModuleLoader__.load({
           }, t('refresh')),
         ),
 
-        notice ? h('div', { className: 'dct-notice dct-notice-' + notice.tone, role: 'status' }, notice.text) : null,
+        notice ? h('div', {
+          className: 'dct-notice dct-notice-' + notice.tone,
+          role: notice.tone === 'error' ? 'alert' : 'status',
+        }, notice.text) : null,
         phase === 'error'
           ? h('div', { className: 'dct-notice dct-notice-error' }, h('span', null, t('loadFailed')), h('button', {
             type: 'button', className: 'dct-link', onClick: () => { void load() },
@@ -483,7 +493,7 @@ window.__ModuleLoader__.load({
           h('p', { className: 'dct-hint' }, t('export.hint')),
           phase === 'loading'
             ? h('p', { className: 'dct-hint' }, t('loading'))
-            : h('div', { className: 'dct-grid' }, CATEGORIES.map(id => h(CategoryCard, {
+            : phase === 'error' ? null : h('div', { className: 'dct-grid' }, CATEGORIES.map(id => h(CategoryCard, {
               key: id, t, id, group: groupOf(id), checked: selected[id] === true, onToggle: toggle,
             }))),
           h('label', { className: 'dct-option' },
@@ -498,10 +508,9 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dct-actions' },
             h('button', {
               type: 'button', className: 'dct-button dct-button-primary',
-              disabled: busy !== null || chosen.length === 0,
+              disabled: busy !== null || chosen.length === 0 || phase !== 'ready',
               onClick: () => { void exportNow() },
             }, busy === 'export' ? t('exporting') : t('export.button')),
-            busy === 'export' ? h('span', { className: 'dct-hint' }, t('exporting')) : null,
           ),
         ),
 
@@ -543,8 +552,8 @@ window.__ModuleLoader__.load({
               const group = pending.document.categories?.[id]
               const count = Array.isArray(group?.items) ? group.items.length : 0
               if (count === 0) return null
-              return h('label', { key: 'import:' + id, className: 'dct-card dct-card-small' },
-                h('span', { className: 'dct-card-head' },
+              return h('div', { key: 'import:' + id, className: 'dct-card dct-card-small' },
+                h('label', { className: 'dct-card-head' },
                   h('input', {
                     type: 'checkbox', checked: importSelected[id] === true,
                     onChange: event => setImportSelected(previous => ({ ...previous, [id]: event.target.checked })),
@@ -553,17 +562,26 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'dct-card-title' }, t('category.' + id)),
                   h(Chip, { tone: 'count' }, t('file.' + id, { count })),
                 ),
+                h('details', { className: 'dct-items' },
+                  h('summary', null, t('items', { count })),
+                  h('ul', null, group.items.slice(0, 12).map((item, index) => h('li', {
+                    key: 'item:' + index,
+                  }, h('code', null, item.label ?? item.id ?? item.name ?? '?')))),
+                  group.items.length > 12 ? h('p', { className: 'dct-empty' }, '+ ' + String(group.items.length - 12)) : null,
+                ),
               )
             })),
-            h('label', { className: 'dct-option' },
-              h('input', {
-                type: 'checkbox', checked: installMissing,
-                onChange: event => setInstallMissing(event.target.checked),
-                disabled: busy !== null,
-              }),
-              h('span', null, t('import.installMissing')),
-            ),
-            h('p', { className: 'dct-hint dct-hint-warn' }, t('installMissing.hint')),
+            showInstallOption ? h('div', { className: 'dct-option-group' },
+              h('label', { className: 'dct-option' },
+                h('input', {
+                  type: 'checkbox', checked: installMissing,
+                  onChange: event => setInstallMissing(event.target.checked),
+                  disabled: busy !== null,
+                }),
+                h('span', null, t('import.installMissing')),
+              ),
+              h('p', { className: 'dct-hint dct-hint-warn' }, t('installMissing.hint')),
+            ) : null,
             h('div', { className: 'dct-actions' },
               h('button', {
                 type: 'button', className: 'dct-button dct-button-primary',
@@ -579,7 +597,10 @@ window.__ModuleLoader__.load({
           ) : null,
         ),
 
-        report ? h('div', { className: 'dct-block dct-report' },
+        report ? h('div', {
+          className: 'dct-block dct-report', ref: reportRef, tabIndex: -1,
+          role: 'status', 'aria-live': 'polite',
+        },
           h('div', { className: 'dct-report-head' },
             h('h3', null, report.ok ? t('import.done') : t('import.partial')),
             h('div', { className: 'dct-summary' },
@@ -593,13 +614,11 @@ window.__ModuleLoader__.load({
           CATEGORIES.map((id) => {
             const rows = report.categories?.[id]
             if (!Array.isArray(rows) || rows.length === 0) return null
-            const visible = rows.slice(0, 50)
             return h('div', { key: 'report:' + id, className: 'dct-result-group' },
               h('h4', null, t('category.' + id)),
-              h('ul', { className: 'dct-result-list' }, visible.map((row, index) => h(ResultRow, {
+              h('ul', { className: 'dct-result-list' }, rows.map((row, index) => h(ResultRow, {
                 key: id + ':' + index, row, t,
               }))),
-              rows.length > visible.length ? h('p', { className: 'dct-hint' }, t('result.more', { count: rows.length - visible.length })) : null,
             )
           }),
           Array.isArray(report.warnings) && report.warnings.length > 0
@@ -651,6 +670,8 @@ window.__ModuleLoader__.load({
 .dct-block h3{margin:0;font-size:14px;line-height:22px;font-weight:600}
 .dct-hint{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .dct-hint-warn{color:var(--dsw-alias-state-warn-primary)}
+.dct-notice-warn{color:var(--dsw-alias-state-warn-primary)}
+.dct-option-group{display:flex;flex-direction:column;gap:3px}
 .dct-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .dct-grid-compact{grid-template-columns:1fr 1fr}
 @media (max-width:640px){.dct-grid,.dct-grid-compact{grid-template-columns:1fr}}
@@ -693,16 +714,17 @@ window.__ModuleLoader__.load({
 .dct-preview-head strong{font-size:13px}
 .dct-preview-label{margin:0;font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary)}
 .dct-report{border-color:var(--dsw-alias-border-l2)}
+.dct-report:focus{outline:none}
 .dct-report-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .dct-report-head h3{margin:0}
 .dct-summary{display:flex;gap:6px;flex-wrap:wrap}
 .dct-result-group{display:flex;flex-direction:column;gap:5px}
 .dct-result-group h4{margin:4px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);font-weight:600}
 .dct-result-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:240px;overflow:auto}
-.dct-result-row{display:flex;align-items:center;gap:7px;font-size:12px;line-height:17px;min-width:0}
+.dct-result-row{display:flex;align-items:flex-start;gap:7px;font-size:12px;line-height:17px;min-width:0}
 .dct-result-key{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dct-result-status{color:var(--dsw-alias-label-secondary);flex:none}
-.dct-result-message{color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.dct-result-message{color:var(--dsw-alias-label-secondary);white-space:normal;overflow-wrap:anywhere;min-width:0}
 `
 
     return {
