@@ -410,7 +410,9 @@ async function importEntries(ctx, document, categories, report) {
         && item.group !== true
         && !containsJsMarker(item.config)
       if (!editable) {
-        direct.push({ category, item })
+        // A live row already exists in another layer: amend it instead of
+        // inserting a second row with the same id.
+        direct.push({ category, item: item.kind === 'insert' && info.has(item.id) ? { ...item, kind: 'override' } : item })
         continue
       }
       try {
