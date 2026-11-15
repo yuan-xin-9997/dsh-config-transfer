@@ -1,0 +1,5 @@
+# Insert the Host routes this bundle serves to its own browser half.
+- insert:
+    - id: config-transfer
+      name: 'dsh-config-transfer'
+      config: {}

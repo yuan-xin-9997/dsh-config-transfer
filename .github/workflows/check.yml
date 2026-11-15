@@ -1,0 +1,67 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: syntax, manifest and engine tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check index.js
+          node --check client.js
+
+      - name: Validate JSON and SVG resources
+        run: |
+          node -e "
+          const fs = require('node:fs');
+          for (const file of ['package.json', 'package-lock.json', 'locale/en.json', 'locale/zh.json']) {
+            JSON.parse(fs.readFileSync(file, 'utf8'));
+            console.log('json ok ' + file);
+          }
+          for (const file of ['icon.svg', 'docs/preview.svg']) {
+            const text = fs.readFileSync(file, 'utf8');
+            if (!text.includes('<svg') || !text.includes('</svg>')) throw new Error(file + ' is not an SVG');
+            console.log('svg ok ' + file);
+          }
+          for (const file of ['docs/DETAIL.md', 'docs/DETAIL.zh.md', 'README.md', 'README.zh.md', 'LICENSE']) {
+            fs.accessSync(file);
+          }
+          "
+
+      - name: Validate bundle manifest
+        run: |
+          node -e "
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const fail = message => { console.error('manifest: ' + message); process.exit(1) };
+          if (!pkg.dsh || !pkg.dsh.bundle || typeof pkg.dsh.bundle.patch !== 'string') fail('dsh.bundle.patch is required');
+          if (!pkg.dsh.client || pkg.dsh.client.platform !== 'web') fail('dsh.client.platform must be web');
+          if (!pkg.exports || !pkg.exports['./client']) fail('the ./client export is required');
+          if (!pkg.exports || !pkg.exports['./icon']) fail('the ./icon export is required');
+          if (!pkg.files.includes('docs')) fail('docs must be packaged for meta.detail');
+          for (const file of ['index.js', 'client.js', 'cordis.patch.yml', 'icon.svg', 'locale/en.json', 'locale/zh.json']) fs.accessSync(file);
+          console.log('manifest: ok');
+          "
+
+      - name: Run engine and browser-module tests
+        run: npm test

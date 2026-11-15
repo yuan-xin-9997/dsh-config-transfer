@@ -1,0 +1,66 @@
+{
+  "name": "dsh-config-transfer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Export and import DeepSeek Harness plugin bundles, plugin configuration, MCP servers and agent presets by category, from one Settings page.",
+  "license": "MIT",
+  "author": "Yuan Xin (https://github.com/yuan-xin-9997)",
+  "homepage": "https://github.com/yuan-xin-9997/dsh-config-transfer#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuan-xin-9997/dsh-config-transfer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yuan-xin-9997/dsh-config-transfer/issues"
+  },
+  "icon": "./icon.svg",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "config",
+    "backup",
+    "migration",
+    "export",
+    "import"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "docs",
+    "icon.svg",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-general"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check index.js && node --check client.js"
+  }
+}

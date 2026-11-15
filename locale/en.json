@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Config transfer",
+    "description": "Adds a Config transfer page to Settings that exports and imports this profile's user configuration by category: plugin bundles, plugin configuration, MCP servers and agent presets. Export writes one versioned JSON file and can hide credential values. Import previews the file in the browser, lets you choose categories, backs up cordis.patch.yml, then applies the chosen rows through the same profile files the built-in management pages use. Fill the checkboxes for the categories you want; missing bundles are only installed when you tick the explicit install option.",
+    "detail": "docs/DETAIL.md"
+  }
+}
