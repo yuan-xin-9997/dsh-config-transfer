@@ -704,7 +704,7 @@ window.__ModuleLoader__.load({
 .dct-button{border:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-primary);border-radius:8px;padding:6px 14px;font:inherit;font-size:12px;line-height:20px;cursor:pointer}
 .dct-button:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}
 .dct-button:disabled{opacity:.55;cursor:default}
-.dct-button-primary{background:var(--dsw-alias-brand-primary);border-color:transparent;color:#fff}
+.dct-button-primary{background:var(--dsw-alias-brand-primary);border-color:transparent;color:var(--dsw-alias-bg-base)}
 .dct-button-primary:hover:not(:disabled){background:var(--dsw-alias-brand-primary);filter:brightness(1.05)}
 .dct-notice{border-radius:8px;padding:8px 10px;font-size:12px;line-height:18px;display:flex;align-items:center;gap:10px;background:var(--dsw-alias-bg-layer-2)}
 .dct-notice-ok{color:var(--dsw-alias-state-success-primary)}
